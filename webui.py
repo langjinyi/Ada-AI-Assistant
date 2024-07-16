@@ -7,7 +7,7 @@ import gradio as gr
 import soundfile as sf
 
 # API的URL
-url = 'http://localhost:7861/voice_text/chat'
+url = 'http://localhost:7861/chat/chat'
 
 headers = {
     'accept': 'application/json',
@@ -17,7 +17,7 @@ headers = {
 def send_text_request(text_input, chat_history, K, temperature, max_tokens):
     audio_data = {
         "text_query": text_input,
-        "history": chat_history,
+        "history": [str(history) for history in chat_history],
         "K": K,
         "temperature": temperature,
         "max_tokens": max_tokens,
@@ -48,7 +48,7 @@ def send_audio_request(audio_input, chat_history, K, temperature, max_tokens, sp
     sample_rate, audio = audio_input
 
     audio_data = {
-        "history": chat_history,
+        "history": [str(history) for history in chat_history],
         "K": K,
         "temperature": temperature,
         "max_tokens": max_tokens,

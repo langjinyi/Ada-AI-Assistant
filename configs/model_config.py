@@ -29,10 +29,10 @@ MODEL_PATH = {
         "Qwen-7B-Chat": "models/Qwen-7B-Chat/Qwen/Qwen-7B-Chat",
     },
     "v2t_model": {
-        "whisper-tiny": "models/whisper-tiny",
+        "whisper-tiny": "./models/whisper-tiny",
     },
     "t2v_model": {
-        "chatTTS": "models/chatTTS/pzc163/chatTTS",
+        "chatTTS": "./models/chatTTS/pzc163/chatTTS",
     },
 }
 
