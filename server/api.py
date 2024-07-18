@@ -11,7 +11,7 @@ import uvicorn
 
 from configs import NLTK_DATA_PATH
 from configs.server_config import OPEN_CROSS_DOMAIN
-from server.chat import chat
+from server.chat import chat, agent_chat
 from server.utils import BaseResponse
 from server.transform import v2t, t2v
 
@@ -38,6 +38,7 @@ def create_app(run_mode: str = None):
             allow_headers=["*"],
         )
     app.include_router(chat.router, prefix="/chat")
+    app.include_router(agent_chat.router, prefix="/chat")
     app.include_router(v2t.router, prefix="/transform")
     app.include_router(t2v.router, prefix="/transform")
 

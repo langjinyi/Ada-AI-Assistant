@@ -27,6 +27,7 @@ import io
 import zipfile
 from scipy.io.wavfile import write as wavwrite
 
+
 def fschat_controller_address() -> str:
     from configs.server_config import FSCHAT_CONTROLLER
 
@@ -151,7 +152,7 @@ class BaseResponse(BaseModel):
 
 def remove_special_characters(text):
     # 使用正则表达式替换非字母和非数字字符
-    pattern = r'\（[^）]*\）|\([^\)]*\)[!?]'
+    pattern = r'\（[^）]*\）|\([^\)]*\)'
     # 使用正则表达式替换掉所有匹配的圆括号及其内容
     cleaned_text = re.sub(pattern, '', text)
     return cleaned_text
@@ -195,3 +196,56 @@ def add_wavs_to_zip(zip_file, wavs, stream, text=None):
             audio_data = convert_to_int16(np.array(wavs, dtype=np.float32))
             wav_buffer = write_wav_to_buffer(audio_data, rate=24000)
             zf.writestr("output.mp3", wav_buffer.read())
+
+
+import re
+
+
+def number_to_chinese(number):
+    num_to_chinese = {
+        '0': '零',
+        '1': '一',
+        '2': '二',
+        '3': '三',
+        '4': '四',
+        '5': '五',
+        '6': '六',
+        '7': '七',
+        '8': '八',
+        '9': '九'
+    }
+
+    units = ['', '十', '百', '千', '万', '十万', '百万', '千万', '亿', '十亿']
+
+    if number == 0:
+        return num_to_chinese['0']
+
+    digits = list(str(number))
+    length = len(digits)
+    chinese_str = ''
+    zero_flag = False
+
+    for i in range(length):
+        digit = digits[i]
+        pos = length - i - 1
+        unit = units[pos]
+
+        if digit == '0':
+            zero_flag = True
+            if pos % 4 == 0:  # 在万、亿等位置保留零
+                chinese_str += unit
+        else:
+            if zero_flag:
+                chinese_str += num_to_chinese['0']
+                zero_flag = False
+            chinese_str += num_to_chinese[digit] + unit
+
+    return chinese_str.rstrip('零')
+
+
+def convert_numbers_to_chinese(sentence):
+    def number_to_chinese_wrapper(match):
+        number = int(match.group(0))
+        return number_to_chinese(number)
+
+    return re.sub(r'\d+', number_to_chinese_wrapper, sentence)
