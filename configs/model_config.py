@@ -24,6 +24,8 @@ MAX_TOKENS = 2048
 
 TEMPERATURE = 0.7
 
+SPK_PATH = "./models/chatTTS/seed_1506_restored_emb.pt"
+
 MODEL_PATH = {
     "llm_model": {
         "Qwen-7B-Chat": "models/Qwen-7B-Chat/Qwen/Qwen-7B-Chat",

@@ -99,7 +99,7 @@ def mock_chat_function(text_input, audio_input, chat_history, stream, K, tempera
             chat_history_display = [(entry["role"], entry["content"]) for entry in chat_history]
             chat_history_display.append(("我", text_input))
             chat_history_display.append(("菲菲", text_stream))
-            time.sleep(2)
+            # time.sleep(1)
             yield audio_stream, chat_history_display, gr.update(value=''), gr.update(value=None)
 
         if text_stream:
@@ -119,7 +119,7 @@ def mock_chat_function(text_input, audio_input, chat_history, stream, K, tempera
             chat_history_display = [(entry["role"], entry["content"]) for entry in chat_history]
             chat_history_display.append(("我", query))
             chat_history_display.append(("菲菲", text_stream))
-            time.sleep(2)
+            # time.sleep(1)
 
             yield audio_stream, chat_history_display, gr.update(value=''), gr.update(value=None)
 
@@ -143,7 +143,7 @@ with gr.Blocks() as demo:
             stream = gr.Checkbox(False, label="是否流式输出")
             K = gr.Slider(minimum=1, maximum=5, value=3, step=1, label="保留K轮历史")
             temperature = gr.Slider(minimum=0.0, maximum=2.0, value=0.7, step=0.1, label="LLM 采样温度")
-            max_tokens = gr.Number(value=50, label="限制LLM生成Token数量")
+            max_tokens = gr.Number(value=1024, label="限制LLM生成Token数量")
             speed = gr.Textbox(value="[speed_2]", label="语速0-9")
             seed = gr.Number(value=1506, label="音色")
 

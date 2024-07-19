@@ -3,3 +3,4 @@
 # @Author  : JINYI LIANG
 
 from .chat import router as chat_router
+from .agent_chat import router as agent_chat_router
