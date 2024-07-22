@@ -3,7 +3,6 @@
 # @Author  : JINYI LIANG
 from langchain.tools import Tool
 from server.agent.tools import *
-from server.agent.tools.search_internet import search_internet, SearchInternetInput
 
 tools = [
     Tool.from_function(
@@ -24,12 +23,7 @@ tools = [
         description="查看天气情况",
         args_schema=WeatherInput,
     ),
-    Tool.from_function(
-        func=search_internet,
-        name="search_internet",
-        description="Use this tool to use bing search engine to search the internet",
-        args_schema=SearchInternetInput,
-    ),
+
 ]
 
 tool_names = [tool.name for tool in tools]

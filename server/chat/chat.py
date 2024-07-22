@@ -13,7 +13,7 @@ from fastapi.responses import StreamingResponse
 from typing import List
 from ast import literal_eval
 from server.utils import get_model_worker_config, fschat_openai_api_address, remove_special_characters, \
-    write_wav_to_buffer, convert_to_int16
+    write_wav_to_buffer, convert_to_int16, convert_numbers_to_chinese
 from configs import LLM_MODELS, TEMPERATURE, PROMPT_TEMPLATES
 from langchain.chains import LLMChain
 from langchain.chat_models import ChatOpenAI
@@ -82,8 +82,9 @@ async def chat(audio_file: UploadFile = File(None, description="用户输入语�
         converted_output = "\n".join(converted_examples[-K * 2:])
 
     chat_prompt = ChatPromptTemplate.from_messages(
-        [("system", PROMPT_TEMPLATES['girl_friend'] + converted_output),
-         ("human", "{input}")],
+        [
+         ("human", PROMPT_TEMPLATES['girl_friend(chat)'] + converted_output + "{input}")
+        ],
     )
 
     chain = LLMChain(prompt=chat_prompt, llm=model, verbose=True)
@@ -101,7 +102,7 @@ async def chat(audio_file: UploadFile = File(None, description="用户输入语�
     )
 
     async def tts_infer(text_):
-        return models.tts.infer(text_, stream=False, params_infer_code=params_infer_code,
+        return models.tts.infer(text_, stream=stream, params_infer_code=params_infer_code,
                                 do_text_normalization=True, use_decoder=True)
 
     async def generate_response():
@@ -109,29 +110,29 @@ async def chat(audio_file: UploadFile = File(None, description="用户输入语�
             sentence = ""
             async for token in callback.aiter():
                 sentence += token
-                if any(p in sentence for p in ".!?。！？"):
-                    sentence = remove_special_characters(sentence)
-                    tts_task = asyncio.create_task(tts_infer(sentence))
-                    audio_chunk = await tts_task
-                    audio_data = convert_to_int16(np.array(audio_chunk, dtype=np.float32))
-                    buffer = write_wav_to_buffer(audio_data, rate=24000)
-                    # Prepare the response data
-                    response_data = {
-                        "input": query,
-                        "text": token,
-                        "audio": buffer.read().decode('latin1')  # Encode binary data as latin1
-                    }
-                    sentence = ""
-                    yield json.dumps(response_data)
-                else:
-                    response_data = {
-                        "input": query,
-                        "text": token
-                    }
-                    yield json.dumps(response_data)
+                # Prepare the response data
+                response_data = {
+                    "input": query,
+                    "text": token,
+                }
+                yield json.dumps(response_data)
+            # Remove special characters from the final sentence
+            clean_sentence = remove_special_characters(sentence)
+            chinese_sentence = convert_numbers_to_chinese(clean_sentence)
+            tts_task = asyncio.create_task(tts_infer(chinese_sentence))
+            audio_chunks = await tts_task
+            for chunk in audio_chunks:
+                audio_data = convert_to_int16(np.array(chunk, dtype=np.float32))
+                buffer = write_wav_to_buffer(audio_data, rate=24000)
+                # Prepare the response data
+                response_data = {
+                    "input": query,
+                    "audio": buffer.read().decode('latin1')  # Encode binary data as latin1
+                }
+                yield json.dumps(response_data)
+
         else:
             sentence = ""
-
             # Process all tokens first
             async for token in callback.aiter():
                 sentence += token

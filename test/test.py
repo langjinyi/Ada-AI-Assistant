@@ -1,15 +1,23 @@
 # _*_ coding: utf-8 _*_
 # @Time    : 2024/7/16 18:53
 # @Author  : JINYI LIANG
-import requests
+from langchain.chains import LLMChain
+from langchain.chat_models import ChatOpenAI
+from langchain.prompts.chat import ChatPromptTemplate
 
+from configs import PROMPT_TEMPLATES
 
-url = "https://api.seniverse.com/v3/weather/now.json?key=SfYdoqNuCW39UQUvb&location=佛山&language=zh-Hans&unit=c"
-response = requests.get(url)
-if response.status_code == 200:
-    data = response.json()
-    weather = {
-        "temperature": data["results"][0]["now"]["temperature"],
-        "description": data["results"][0]["now"]["text"],
-    }
-    print(weather)
+llm = ChatOpenAI(
+    model="deepseek-chat",
+    openai_api_key="",
+    openai_api_base="https://api.deepseek.com/v1",
+    temperature=1,
+    max_tokens=20)
+
+chat_prompt = ChatPromptTemplate.from_messages(
+    [("system", PROMPT_TEMPLATES['girl_friend(chat)']),
+     ("human", "{input}")],
+)
+
+chain = LLMChain(prompt=chat_prompt, llm=llm, verbose=True)
+print(chain("你是谁"))

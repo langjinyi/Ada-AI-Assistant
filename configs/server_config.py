@@ -42,9 +42,8 @@ FSCHAT_MODEL_WORKERS = {
         "port": 20002,
         "device": LLM_DEVICE,
         "infer_turbo": False,
-
-
     },
+
 }
 
 FSCHAT_CONTROLLER = {

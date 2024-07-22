@@ -8,8 +8,8 @@ import numpy as np
 import pydantic
 from pydantic import BaseModel
 from fastapi import FastAPI
-from configs import (LLM_MODELS, LLM_DEVICE,
-                     MODEL_PATH, MODEL_ROOT_PATH)
+from configs import (LLM_MODELS, LLM_DEVICE, logger, log_verbose,
+                     MODEL_PATH, MODEL_ROOT_PATH, ONLINE_LLM_MODEL)
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -74,11 +74,26 @@ def get_model_worker_config(model_name: str = None) -> dict:
     加载model worker的配置项。
     优先级:FSCHAT_MODEL_WORKERS[model_name] > ONLINE_LLM_MODEL[model_name] > FSCHAT_MODEL_WORKERS["default"]
     '''
-    from configs.model_config import MODEL_PATH
+    from configs.model_config import MODEL_PATH, ONLINE_LLM_MODEL
     from configs.server_config import FSCHAT_MODEL_WORKERS
+    from server import model_workers
 
     config = FSCHAT_MODEL_WORKERS.get("default", {}).copy()
+    config.update(ONLINE_LLM_MODEL.get(model_name, {}).copy())
     config.update(FSCHAT_MODEL_WORKERS.get(model_name, {}).copy())
+
+    # Api大模型
+    if model_name in ONLINE_LLM_MODEL:
+        config["online_api"] = True
+        config["device"] = llm_device(config.get("device"))
+        if provider := config.get("provider"):
+            try:
+                config["worker_class"] = getattr(model_workers, provider)
+
+            except Exception as e:
+                msg = f"在线模型 ‘{model_name}’ 的provider没有正确配置"
+                logger.error(f'{e.__class__.__name__}: {msg}',
+                             exc_info=e if log_verbose else None)
 
     # 本地模型
     if model_name in MODEL_PATH["llm_model"]:
@@ -215,37 +230,12 @@ def number_to_chinese(number):
         '9': '九'
     }
 
-    units = ['', '十', '百', '千', '万', '十万', '百万', '千万', '亿', '十亿']
-
-    if number == 0:
-        return num_to_chinese['0']
-
-    digits = list(str(number))
-    length = len(digits)
-    chinese_str = ''
-    zero_flag = False
-
-    for i in range(length):
-        digit = digits[i]
-        pos = length - i - 1
-        unit = units[pos]
-
-        if digit == '0':
-            zero_flag = True
-            if pos % 4 == 0:  # 在万、亿等位置保留零
-                chinese_str += unit
-        else:
-            if zero_flag:
-                chinese_str += num_to_chinese['0']
-                zero_flag = False
-            chinese_str += num_to_chinese[digit] + unit
-
-    return chinese_str.rstrip('零')
+    return ''.join(num_to_chinese[digit] for digit in str(number))
 
 
 def convert_numbers_to_chinese(sentence):
     def number_to_chinese_wrapper(match):
-        number = int(match.group(0))
+        number = match.group(0)
         return number_to_chinese(number)
 
     return re.sub(r'\d+', number_to_chinese_wrapper, sentence)

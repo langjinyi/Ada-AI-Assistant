@@ -43,7 +43,7 @@ class CustomAsyncIteratorCallbackHandler(AsyncCallbackHandler):
     async def on_llm_new_token(self, token: str, **kwargs: Any) -> None:
         if token is not None and token != "":
             if self.out:
-                special_tokens = ["Action", "<|observation|>"]
+                special_tokens = ["Action", "Observation"]
                 for stoken in special_tokens:
                     if stoken in token:
                         before_action = token.split(stoken)[0]
@@ -80,7 +80,10 @@ class CustomAsyncIteratorCallbackHandler(AsyncCallbackHandler):
 
     async def on_agent_finish(self, finish: AgentFinish, **kwargs: Any) -> None:
         # 返回最终答案
-        # self.queue.put_nowait(finish.return_values["output"])
+        print("***************")
+        print(finish.return_values["output"])
+        print("***************")
+        self.queue.put_nowait(finish.return_values["output"])
         self.done.set()
 
     async def aiter(self) -> AsyncIterator[str]:
