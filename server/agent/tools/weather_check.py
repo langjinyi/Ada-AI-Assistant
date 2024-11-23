@@ -8,15 +8,16 @@ from configs.tools_config import SENIVERSE_API_KEY
 
 def weather(location: str, api_key: str):
     url = f"https://api.seniverse.com/v3/weather/now.json?key={api_key}&location={location}&language=zh-Hans&unit=c"
-    print(url)
     response = requests.get(url)
-    print(response)
     if response.status_code == 200:
         data = response.json()
         weather = {
             "temperature": data["results"][0]["now"]["temperature"],
             "description": data["results"][0]["now"]["text"],
         }
+        print("******************")
+        print(weather)
+        print("******************")
         return weather
     else:
         raise Exception(

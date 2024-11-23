@@ -20,8 +20,15 @@ tools = [
     Tool.from_function(
         func=weathercheck,
         name="weather_check",
-        description="查看天气情况",
+        description="Use this tool to check the real-time weather",
         args_schema=WeatherInput,
+    ),
+
+    Tool.from_function(
+        func=google_search,
+        name="internet_search",
+        description="Use this tool to use search engine to search the internet",
+        args_schema=InternetSearchInput,
     ),
 
 ]

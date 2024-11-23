@@ -23,7 +23,7 @@ import librosa
 import ChatTTS
 from server.models import models
 from langchain.callbacks import AsyncIteratorCallbackHandler
-import soundfile as sf
+import edge_tts
 
 router = APIRouter()
 
@@ -33,15 +33,17 @@ router = APIRouter()
              summary="与llm模型语音对话(通过LLMChain)")
 async def chat(audio_file: UploadFile = File(None, description="用户输入语音文件"),
                text_query: str = Form(None, description="用户输入文字", examples=["你好"]),
-               history: List[str] = Form([], description="用户聊天记录"),
+               history: List[str] = Form([""], description="用户聊天记录"),
                K: int = Form(3, description="保留K轮历史"),
                stream: bool = Form(False, description="流式输出"),
                model_name: str = Form(LLM_MODELS, description="LLM 模型名称。"),
                temperature: float = Form(TEMPERATURE, description="LLM 采样温度", ge=0.0, le=2.0),
-               max_tokens: int = Form(None, description="限制LLM生成Token数量，默认None代表模型最大值"),
+               max_tokens: int = Form(1024, description="限制LLM生成Token数量，默认None代表模型最大值"),
                prompt_name: str = Form("default", description="使用的prompt模板名称"),
                speed: str = Form("[speed_2]", description="语速"),
-               seed: int = Form(1506, description="音色")):
+               seed: int = Form(1506, description="音色"),
+               tts_type: str = Form("tts_infer", description="TTS引擎类型")):
+
     callback = AsyncIteratorCallbackHandler()
     query = text_query
 
@@ -83,7 +85,7 @@ async def chat(audio_file: UploadFile = File(None, description="用户输入语�
 
     chat_prompt = ChatPromptTemplate.from_messages(
         [
-         ("human", PROMPT_TEMPLATES['girl_friend(chat)'] + converted_output + "{input}")
+            ("human", PROMPT_TEMPLATES['girl_friend(chat)'] + converted_output + "\n" + "{input}")
         ],
     )
 
@@ -98,12 +100,18 @@ async def chat(audio_file: UploadFile = File(None, description="用户输入语�
     params_infer_code = ChatTTS.Chat.InferCodeParams(
         prompt=speed,
         spk_emb=rand_spk,
-        temperature=.3,
+        temperature=0.1 ** 10,
     )
 
     async def tts_infer(text_):
         return models.tts.infer(text_, stream=stream, params_infer_code=params_infer_code,
                                 do_text_normalization=True, use_decoder=True)
+
+    async def edge_tts_infer(text_, voice="zh-CN-XiaoxiaoNeural"):
+        communicate = edge_tts.Communicate(text_, voice)
+        async for chunked in communicate.stream():
+            if chunked["type"] == "audio":
+                yield chunked["data"]
 
     async def generate_response():
         if stream:
@@ -119,47 +127,73 @@ async def chat(audio_file: UploadFile = File(None, description="用户输入语�
             # Remove special characters from the final sentence
             clean_sentence = remove_special_characters(sentence)
             chinese_sentence = convert_numbers_to_chinese(clean_sentence)
-            tts_task = asyncio.create_task(tts_infer(chinese_sentence))
-            audio_chunks = await tts_task
-            for chunk in audio_chunks:
-                audio_data = convert_to_int16(np.array(chunk, dtype=np.float32))
-                buffer = write_wav_to_buffer(audio_data, rate=24000)
-                # Prepare the response data
-                response_data = {
-                    "input": query,
-                    "audio": buffer.read().decode('latin1')  # Encode binary data as latin1
-                }
-                yield json.dumps(response_data)
+            if tts_type == "tts_infer":
+                tts_task = asyncio.create_task(tts_infer(chinese_sentence))
+                audio_chunks = await tts_task
+                for chunk in audio_chunks:
+                    audio_data = convert_to_int16(np.array(chunk, dtype=np.float32))
+                    buffer = write_wav_to_buffer(audio_data, rate=24000)
+                    # Prepare the response data
+                    response_data = {
+                        "input": query,
+                        "audio": buffer.read().decode('latin1')  # Encode binary data as latin1
+                    }
+                    yield json.dumps(response_data)
+            elif tts_type == "edge_tts_infer":
+                async for chunk in edge_tts_infer(chinese_sentence):
+                    # Prepare the response data
+                    response_data = {
+                        "input": query,
+                        "audio": chunk.decode('latin1')  # Encode binary data as latin1
+                    }
+                    yield json.dumps(response_data)
 
         else:
             sentence = ""
             # Process all tokens first
             async for token in callback.aiter():
                 sentence += token
-                print(sentence)
 
             # Remove special characters from the final sentence
-            sentence = remove_special_characters(sentence)
+            clean_sentence = remove_special_characters(sentence)
+            chinese_sentence = convert_numbers_to_chinese(clean_sentence)
+            if tts_type == "tts_infer":
+                # Perform TTS inference on the cleaned sentence
+                tts_task = asyncio.create_task(tts_infer(chinese_sentence))
+                audio_chunk = await tts_task
 
-            # Perform TTS inference on the cleaned sentence
-            tts_task = asyncio.create_task(tts_infer(sentence))
-            audio_chunk = await tts_task
+                # Convert the audio chunk to int16 format
+                audio_data = convert_to_int16(np.array(audio_chunk, dtype=np.float32))
 
-            # Convert the audio chunk to int16 format
-            audio_data = convert_to_int16(np.array(audio_chunk, dtype=np.float32))
+                # Write the audio data to a buffer
+                buffer = write_wav_to_buffer(audio_data, rate=24000)
 
-            # Write the audio data to a buffer
-            buffer = write_wav_to_buffer(audio_data, rate=24000)
+                # Prepare the response data
+                response_data = {
+                    "input": query,
+                    "text": sentence,
+                    "audio": buffer.read().decode('latin1')  # Encode binary data as latin1
+                }
 
-            # Prepare the response data
-            response_data = {
-                "input": query,
-                "text": sentence,
-                "audio": buffer.read().decode('latin1')  # Encode binary data as latin1
-            }
+                # Yield the response data as JSON
+                yield json.dumps(response_data)
+            elif tts_type == "edge_tts_infer":
+                # Prepare the response data
+                response_data = {
+                    "input": query,
+                    "text": sentence,
+                }
+                # Yield the response data as JSON
+                yield json.dumps(response_data)
+                async for chunk in edge_tts_infer(chinese_sentence):
+                    # Prepare the response data
+                    response_data = {
+                        "input": query,
+                        "audio": chunk.decode('latin1')  # Encode binary data as latin1
+                    }
+                    yield json.dumps(response_data)
 
-            # Yield the response data as JSON
-            yield json.dumps(response_data)
 
         await chain_task
+
     return StreamingResponse(generate_response(), media_type="application/json")

@@ -11,6 +11,7 @@ from langchain_core.outputs import LLMResult
 from langchain.callbacks.base import AsyncCallbackHandler
 from langchain.schema import AgentFinish, AgentAction
 
+DEFAULT_ANSWER_PREFIX_TOKENS = ["Final Answer:"]
 
 class CustomAsyncIteratorCallbackHandler(AsyncCallbackHandler):
     """Callback handler that returns an async iterator."""
@@ -18,16 +19,36 @@ class CustomAsyncIteratorCallbackHandler(AsyncCallbackHandler):
     queue: asyncio.Queue[str]
 
     done: asyncio.Event
+    def append_to_last_tokens(self, token: str) -> None:
+        self.last_tokens.append(token)
+
+
+    def check_if_answer_reached(self) -> bool:
+        # print(''.join(self.answer_prefix_tokens))
+        # print(''.join(self.last_tokens))
+        return  ''.join(self.answer_prefix_tokens_stripped) in ''.join(self.last_tokens)
+
 
     @property
     def always_verbose(self) -> bool:
         return True
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        answer_prefix_tokens: Optional[List[str]] = None,
+    ) -> None:
         self.queue = asyncio.Queue()
         self.done = asyncio.Event()
-        self.out = True
-        self.final = False
+        if answer_prefix_tokens is None:
+            self.answer_prefix_tokens = DEFAULT_ANSWER_PREFIX_TOKENS
+        else:
+            self.answer_prefix_tokens = answer_prefix_tokens
+
+        self.answer_prefix_tokens_stripped = self.answer_prefix_tokens
+
+        self.last_tokens = []
+        self.answer_reached = False
 
     async def on_chat_model_start(self, serialized: Dict[str, Any], messages: List[List[BaseMessage]], *, run_id: UUID,
                                   parent_run_id: Optional[UUID] = None, tags: Optional[List[str]] = None,
@@ -38,21 +59,18 @@ class CustomAsyncIteratorCallbackHandler(AsyncCallbackHandler):
             self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any
     ) -> None:
         # If two calls are made in a row, this resets the state
+        self.answer_reached = False
         self.done.clear()
 
     async def on_llm_new_token(self, token: str, **kwargs: Any) -> None:
         if token is not None and token != "":
-            if self.out:
-                special_tokens = ["Action", "Observation"]
-                for stoken in special_tokens:
-                    if stoken in token:
-                        before_action = token.split(stoken)[0]
-                        self.queue.put_nowait(before_action + "\n")
-                        self.out = False
-                        break
+            if not self.check_if_answer_reached():
+                self.append_to_last_tokens(token)
 
-            if self.out:
+            else:
+                token = token.split("Final Answer:")[-1]
                 self.queue.put_nowait(token)
+
 
     async def on_llm_end(self, response: LLMResult, **kwargs: Any) -> None:
         pass
@@ -65,11 +83,11 @@ class CustomAsyncIteratorCallbackHandler(AsyncCallbackHandler):
             self, serialized: Dict[str, Any], input_str: str, **kwargs: Any
     ) -> Any:
         """Run when tool starts running."""
-        pass
+
 
     async def on_tool_end(self, output: Any, **kwargs: Any) -> Any:
         """Run when tool ends running."""
-        self.out = True
+
 
     async def on_tool_error(
             self, error: Union[Exception, KeyboardInterrupt], **kwargs: Any
@@ -80,10 +98,7 @@ class CustomAsyncIteratorCallbackHandler(AsyncCallbackHandler):
 
     async def on_agent_finish(self, finish: AgentFinish, **kwargs: Any) -> None:
         # 返回最终答案
-        print("***************")
-        print(finish.return_values["output"])
-        print("***************")
-        self.queue.put_nowait(finish.return_values["output"])
+        # self.queue.put_nowait(finish.return_values["output"])
         self.done.set()
 
     async def aiter(self) -> AsyncIterator[str]:

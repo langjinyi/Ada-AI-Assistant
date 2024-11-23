@@ -8,10 +8,10 @@ import time
 import json
 
 # 测试URL
-URL = 'http://localhost:7861/voice_text/chat'
+URL = 'http://localhost:7861/chat/chat'
 
 # 模拟音频文件数据
-AUDIO_FILE_PATH = "output.wav"
+AUDIO_FILE_PATH = "../tmp/output.wav"
 
 
 # 创建模拟的请求数据
@@ -43,11 +43,10 @@ async def main():
         responses = await asyncio.gather(*tasks)
         end_time = time.time()
 
-        for status, result in responses:
-            print(f"Status: {status}, Result: {len(result)} bytes")
-
         print(f"Total time for {num_requests} requests: {end_time - start_time:.2f} seconds")
 
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+

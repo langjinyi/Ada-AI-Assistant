@@ -173,13 +173,6 @@ def remove_special_characters(text):
     return cleaned_text
 
 
-def unsafe_float_to_int16(wav: np.ndarray) -> bytes:
-    # 将浮点数转换为 [-32768, 32767] 范围内的整数
-    int16_wav = np.int16(wav * 32767)
-    # 将整数数组转换为字节数组
-    return int16_wav.tobytes()
-
-
 def convert_to_int16(audio_data):
     """ Convert float32 audio data to int16. """
     return (audio_data * 32767).astype(np.int16)
@@ -192,25 +185,6 @@ def write_wav_to_buffer(audio_data, rate):
     buffer.seek(0)
     return buffer
 
-
-def add_wavs_to_zip(zip_file, wavs, stream, text=None):
-    """ Add WAV files to a zip archive. """
-    with zipfile.ZipFile(zip_file, "a", compression=zipfile.ZIP_DEFLATED, allowZip64=False) as zf:
-        # Write the JSON file to the zip
-        json_buffer = io.BytesIO()
-        json_buffer.write(json.dumps(text, ensure_ascii=False, indent=4).encode('utf-8'))
-        json_buffer.seek(0)
-        zf.writestr("text.json", json_buffer.read())
-
-        if stream:
-            for idx, wav in enumerate(wavs):
-                audio_data = convert_to_int16(np.array(wav, dtype=np.float32))
-                wav_buffer = write_wav_to_buffer(audio_data, rate=24000)
-                zf.writestr(f"{idx}.mp3", wav_buffer.read())
-        else:
-            audio_data = convert_to_int16(np.array(wavs, dtype=np.float32))
-            wav_buffer = write_wav_to_buffer(audio_data, rate=24000)
-            zf.writestr("output.mp3", wav_buffer.read())
 
 
 import re

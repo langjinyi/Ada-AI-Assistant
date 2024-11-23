@@ -11,7 +11,7 @@ MODEL_ROOT_PATH = ""
 
 # 要运行的 LLM 名称，可以包括本地模型和在线模型。列表中本地模型将在启动项目时全部加载。
 
-LLM_MODELS = "deepseek-api"
+LLM_MODELS = "Qwen-7B-Chat"
 V2T_MODELS = "whisper-tiny"
 T2V_MODELS = "chatTTS"
 
@@ -41,15 +41,11 @@ MODEL_PATH = {
 ONLINE_LLM_MODEL = {
     #
     "deepseek-api": {
-        "api_key": "",
+        "api_key": "sk-60139bcf936146d2b18faa226648571e",
         "version": "deepseek-chat",
         "provider": "DeepSeekWorker",
     },
-    "zhipu-api": {
-        "api_key": "",
-        "version": "glm-4",
-        "provider": "ChatGLMWorker",
-    },
+
 }
 
 

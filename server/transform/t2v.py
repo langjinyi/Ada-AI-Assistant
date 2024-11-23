@@ -3,14 +3,16 @@
 # @Author  : JINYI LIANG
 
 import io
+
+import numpy as np
 from fastapi import APIRouter, Body
 from fastapi.responses import StreamingResponse
 from typing import Optional
 import torch
 import ChatTTS
 
-from server.utils import add_wavs_to_zip
 from server.models import models
+from server.utils import convert_to_int16, write_wav_to_buffer
 
 router = APIRouter()
 
@@ -30,14 +32,16 @@ async def t2v(text: str = Body(..., description="文字输入", examples=["你�
         temperature=.3,
     )
 
-    wavs = list(models.tts.infer(text,
+    wavs = models.tts.infer(text,
                           stream=stream,
                           params_infer_code=params_infer_code,
                           do_text_normalization=True,
-                          use_decoder=True))
+                          use_decoder=True)
 
-    buf = io.BytesIO()
-    add_wavs_to_zip(buf, wavs, stream)
-    buf.seek(0)
+    # Convert the audio chunk to int16 format
+    audio_data = convert_to_int16(np.array(wavs, dtype=np.float32))
 
-    return StreamingResponse(buf, media_type="application/zip")
+    # Write the audio data to a buffer
+    buffer = write_wav_to_buffer(audio_data, rate=24000)
+
+    return StreamingResponse(buffer, media_type="application/json")

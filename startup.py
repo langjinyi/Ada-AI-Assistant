@@ -210,14 +210,14 @@ async def start_main_server():
     )
     processes["api"] = process
 
-    # webui_started = manager.Event()
-    # process = Process(
-    #     target=run_webui,
-    #     name=f"WEBUI Server",
-    #     kwargs=dict(started_event=webui_started, run_mode=run_mode),
-    #     daemon=True,
-    # )
-    # processes["webui"] = process
+    webui_started = manager.Event()
+    process = Process(
+        target=run_webui,
+        name=f"WEBUI Server",
+        kwargs=dict(started_event=webui_started, run_mode=run_mode),
+        daemon=True,
+    )
+    processes["webui"] = process
 
     try:
         if p := processes.get("controller"):
@@ -240,9 +240,9 @@ async def start_main_server():
             p.start()
             p.name = f"{p.name} ({p.pid})"
 
-        # if p := processes.get("webui"):
-        #     p.start()
-        #     p.name = f"{p.name} ({p.pid})"
+        if p := processes.get("webui"):
+            p.start()
+            p.name = f"{p.name} ({p.pid})"
 
         dump_server_info(after_start=True, args=args)
         p.join()
@@ -339,22 +339,12 @@ def run_webui(started_event: mp.Event = None, run_mode: str = None):
     host = WEBUI_SERVER["host"]
     port = WEBUI_SERVER["port"]
 
-    cmd = ["streamlit", "run", "webui.py",
-           "--server.address", host,
-           "--server.port", str(port),
-           "--theme.base", "light",
-           "--theme.primaryColor", "#165dff",
-           "--theme.secondaryBackgroundColor", "#f5f5f5",
-           "--theme.textColor", "#000000",
-           ]
-    if run_mode == "lite":
-        cmd += [
-            "--",
-            "lite",
-        ]
+    cmd = ["python", "webui.py", "--server_name", host, "--server_port", str(port)]
+
     p = subprocess.Popen(cmd)
     started_event.set()
     p.wait()
+
 
 
 def create_controller_app(

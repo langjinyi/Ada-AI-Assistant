@@ -4,4 +4,3 @@
 
 from .base import *
 from .deepseek import DeepSeekWorker
-from .zhipu import ChatGLMWorker

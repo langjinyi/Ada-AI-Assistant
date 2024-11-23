@@ -143,6 +143,13 @@
           </mappings>
         </serverdata>
       </paths>
+      <paths name="root@connect.westc.gpuhub.com:26304 password">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/root/autodl-tmp/Ada-AI-Assistant" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
     </serverData>
     <option name="myAutoUpload" value="ALWAYS" />
   </component>
